@@ -11,21 +11,11 @@ request.onupgradeneeded = function(e) {
     let txnStore = db.createObjectStore("transactions", { keyPath: "id", autoIncrement: true });
     txnStore.createIndex("customer_id", "customer_id", { unique: false });
 };
-request.onsuccess = function(e) { db = e.target.result; };
+request.onsuccess = function(e) { 
+    db = e.target.result; 
+    loadCustomers(); // auto-load dashboard
+};
 request.onerror = function(e) { alert("DB Error"); };
-
-// ---------------- LOGIN ----------------
-function login() {
-    let user = document.getElementById("username").value;
-    let pass = document.getElementById("password").value;
-    if (user === "admin" && pass === "12345") {
-        document.getElementById("loginPage").style.display = "none";
-        document.getElementById("dashboard").style.display = "block";
-        loadCustomers();
-    } else {
-        alert("Wrong login!");
-    }
-}
 
 // ---------------- CUSTOMER ----------------
 function showAddCustomer() {
@@ -55,12 +45,34 @@ function loadCustomers() {
     let request = store.getAll();
     request.onsuccess = function() {
         let list = document.getElementById("customerList");
+        let summaryDiv = document.getElementById("summary");
         list.innerHTML = "";
+        summaryDiv.innerHTML = "";
+        
+        let totalInvest = 0, totalProfit = 0;
         request.result.forEach(c => {
             let btn = document.createElement("button");
             btn.innerText = c.name;
             btn.onclick = () => openCustomer(c);
             list.appendChild(btn);
+
+            // also calculate totals
+            let tx2 = db.transaction("transactions", "readonly");
+            let store2 = tx2.objectStore("transactions");
+            let idx = store2.index("customer_id");
+            let req = idx.getAll(c.id);
+            req.onsuccess = function() {
+                req.result.forEach(t => {
+                    if (t.type === "investment") totalInvest += t.amount;
+                    if (t.type === "profit") totalProfit += t.amount;
+                });
+                summaryDiv.innerHTML = `
+                    <h3>Overall Summary</h3>
+                    <p>Total Investments: ₹${totalInvest}</p>
+                    <p>Total Profits Paid: ₹${totalProfit}</p>
+                    <p>Overall Balance: ₹${totalInvest - totalProfit}</p>
+                `;
+            };
         });
     };
 }
@@ -79,6 +91,7 @@ function openCustomer(cust) {
 function backToDashboard() {
     document.getElementById("customerDetail").style.display = "none";
     document.getElementById("dashboard").style.display = "block";
+    loadCustomers();
 }
 
 // ---------------- TRANSACTIONS ----------------
@@ -109,7 +122,7 @@ function loadTransactions() {
         let inv = 0, profit = 0;
         req.result.forEach(t => {
             let li = document.createElement("li");
-            li.innerText = `${t.date} - ${t.type} - ₹${t.amount}`;
+            li.innerText = `${new Date(t.date).toLocaleDateString()} - ${t.type} - ₹${t.amount}`;
             list.appendChild(li);
             if (t.type === "investment") inv += t.amount;
             if (t.type === "profit") profit += t.amount;
@@ -131,4 +144,4 @@ function downloadPDF() {
     doc.text(`Profits Paid: ₹${document.getElementById("profitTotal").innerText}`, 10, 60);
     doc.text(`Balance: ₹${document.getElementById("balance").innerText}`, 10, 70);
     doc.save(`${currentCustomer.name}_report.pdf`);
-  }
+}
