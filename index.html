@@ -1,133 +1,252 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Silver Business Manager</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Silver Business Manager (Offline)</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      background: #f9f9f9;
-    }
-    h2 {
-      text-align: center;
-      color: #444;
-    }
-    button {
-      margin: 5px;
-      padding: 10px 15px;
-      border: none;
-      background: #1976d2;
-      color: white;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #0d47a1;
-    }
-    #addForm {
-      margin-top: 15px;
-      padding: 10px;
-      background: #fff;
-      border-radius: 5px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    input {
-      padding: 8px;
-      margin: 5px;
-      width: 90%;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    .customer {
-      background: #fff;
-      padding: 10px;
-      margin: 5px 0;
-      border-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
+    :root { --primary:#1976d2; --muted:#6c757d; --green:#2e7d32; }
+    *{box-sizing:border-box}
+    body{font-family: system-ui, Arial, sans-serif; margin:0; background:#f6f7fb; color:#222}
+    header{position:sticky; top:0; background:#fff; padding:12px 16px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:8px; z-index:10}
+    h1{font-size:18px; margin:0;}
+    main{padding:16px; max-width:780px; margin:0 auto}
+    .row{display:flex; gap:8px; flex-wrap:wrap}
+    .btn{appearance:none; border:none; border-radius:10px; padding:10px 14px; font-weight:600; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.06)}
+    .btn-primary{background:var(--primary); color:#fff}
+    .btn-muted{background:#e9eef6; color:#1b2a4a}
+    .btn-green{background:var(--green); color:#fff}
+    .btn-outline{background:#fff; border:1px solid #e2e6ef}
+    .card{background:#fff; border:1px solid #e9ecf3; border-radius:14px; padding:14px; box-shadow:0 2px 8px rgba(24,32,62,.06)}
+    .list{display:grid; gap:10px}
+    .title{font-size:16px; font-weight:700}
+    label{font-size:12px; color:#5b677e}
+    input, select{width:100%; padding:10px 12px; border:1px solid #d8deea; border-radius:10px; margin-top:6px}
+    .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    .badge{display:inline-block; font-size:12px; padding:4px 8px; border-radius:999px; background:#eef4ff; color:#264c9a}
+    .section-title{margin:10px 0 6px; font-weight:700}
+    .empty{padding:18px; text-align:center; color:#5b677e}
+    .divider{height:1px; background:#edf0f7; margin:12px 0}
+    .link{color:var(--primary); text-decoration:none}
+    .footer{margin-top:24px; color:#6b7280; font-size:12px; text-align:center}
   </style>
 </head>
 <body>
+  <header>
+    <h1>💿 Silver Business (Offline)</h1>
+    <span class="badge" id="dbStatus">DB: connecting…</span>
+  </header>
+  <main>
+    <!-- Controls -->
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn btn-primary" id="btnShowAdd">➕ Add Customer</button>
+      <button class="btn btn-muted" id="btnView">👥 View Customers</button>
+    </div><!-- Add Customer Form -->
+<div class="card" id="addCard" style="display:none">
+  <div class="title">Add Customer</div>
+  <div class="grid-2">
+    <div>
+      <label>Name</label>
+      <input id="custName" placeholder="e.g., Ali" />
+    </div>
+    <div>
+      <label>Phone</label>
+      <input id="custPhone" placeholder="e.g., 98765 43210" />
+    </div>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button class="btn btn-green" id="btnSaveCustomer">Save</button>
+    <button class="btn btn-outline" id="btnCloseAdd">Close</button>
+  </div>
+</div>
 
-  <h2>Silver Business</h2>
+<!-- Customer List -->
+<div class="card" id="listCard">
+  <div class="title">Customers</div>
+  <div id="customerList" class="list">
+    <div class="empty">Tap <b>View Customers</b> to load.</div>
+  </div>
+</div>
 
-  <div style="text-align:center;">
-    <button onclick="document.getElementById('addForm').style.display='block'">+ Add Customer</button>
-    <button onclick="loadCustomers()">View Customers</button>
+<!-- Customer Detail / Transactions -->
+<div class="card" id="detailCard" style="display:none">
+  <div class="title" id="detailTitle">Customer</div>
+  <div id="detailMeta" style="margin-bottom:8px; color:#5b677e"></div>
+
+  <div class="grid-2">
+    <div>
+      <label>Transaction Type</label>
+      <select id="txnType">
+        <option value="investment">Investment</option>
+        <option value="profit">Profit Paid</option>
+      </select>
+    </div>
+    <div>
+      <label>Amount (₹)</label>
+      <input id="txnAmount" type="number" placeholder="e.g., 2000" />
+    </div>
+  </div>
+  <div style="margin-top:10px">
+    <label>Date</label>
+    <input id="txnDate" type="date" />
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button class="btn btn-green" id="btnAddTxn">Add Entry</button>
+    <button class="btn btn-outline" id="btnBack">Back to List</button>
   </div>
 
-  <div id="addForm" style="display:none; text-align:center;">
-    <h3>Add Customer</h3>
-    <input id="custName" placeholder="Customer Name"><br>
-    <input id="custPhone" placeholder="Phone"><br>
-    <button onclick="saveCustomer()">Save</button>
-    <button style="background:#999;" onclick="document.getElementById('addForm').style.display='none'">Close</button>
-  </div>
+  <div class="divider"></div>
 
-  <hr>
-  <h3>Customer List</h3>
-  <div id="customerList"><p>Click 'View Customers' to load data.</p></div>
+  <div class="section-title">Balance Summary</div>
+  <div id="summaryBox"></div>
 
-  <script>
-    let db;
-    const request = indexedDB.open("SilverBusinessDB", 1);
+  <div class="section-title">History</div>
+  <div id="txnList" class="list"></div>
 
-    request.onupgradeneeded = function(event) {
-      db = event.target.result;
-      const customerStore = db.createObjectStore("customers", { keyPath: "id", autoIncrement: true });
-      customerStore.createIndex("name", "name", { unique: false });
-    };
+</div>
 
-    request.onsuccess = function(event) {
-      db = event.target.result;
-    };
+<div class="footer">Data is saved offline in your browser (IndexedDB).</div>
 
-    request.onerror = function(event) {
-      console.error("DB Error:", event.target.error);
-    };
+  </main>  <script>
+    // ===== IndexedDB Setup =====
+    let db; let currentCustomer = null;
+    const req = indexedDB.open('SilverBusinessDB', 2);
 
-    function saveCustomer() {
-      const name = document.getElementById("custName").value.trim();
-      const phone = document.getElementById("custPhone").value.trim();
-      if (!name) {
-        alert("Enter customer name!");
-        return;
+    req.onupgradeneeded = (e) => {
+      db = e.target.result;
+      // customers store
+      if (!db.objectStoreNames.contains('customers')) {
+        const cs = db.createObjectStore('customers', { keyPath: 'id', autoIncrement: true });
+        cs.createIndex('name', 'name', { unique: false });
       }
-      const tx = db.transaction("customers", "readwrite");
-      const store = tx.objectStore("customers");
-      store.add({ name, phone });
+      // transactions store
+      if (!db.objectStoreNames.contains('transactions')) {
+        const ts = db.createObjectStore('transactions', { keyPath: 'id', autoIncrement: true });
+        ts.createIndex('customerId', 'customerId', { unique: false });
+      }
+    };
+
+    req.onsuccess = (e) => {
+      db = e.target.result;
+      document.getElementById('dbStatus').textContent = 'DB: ready';
+      document.getElementById('dbStatus').style.background = '#e7f5ed';
+      document.getElementById('dbStatus').style.color = '#17603a';
+    };
+
+    req.onerror = (e) => {
+      document.getElementById('dbStatus').textContent = 'DB error';
+      alert('IndexedDB not available in this browser. Please use Chrome.');
+    };
+
+    // ===== UI Helpers =====
+    const $ = (id) => document.getElementById(id);
+    const fmt = (n) => '₹' + (Number(n||0)).toLocaleString('en-IN');
+
+    // ===== Event Wiring =====
+    $('btnShowAdd').onclick = () => { $('addCard').style.display = 'block'; };
+    $('btnCloseAdd').onclick = () => { $('addCard').style.display = 'none'; };
+    $('btnSaveCustomer').onclick = saveCustomer;
+    $('btnView').onclick = loadCustomers;
+    $('btnAddTxn').onclick = saveTransaction;
+    $('btnBack').onclick = () => { $('detailCard').style.display='none'; $('listCard').style.display='block'; };
+
+    // ===== Customers =====
+    function saveCustomer(){
+      const name = $('custName').value.trim();
+      const phone = $('custPhone').value.trim();
+      if(!name){ alert('Enter name'); return; }
+
+      const tx = db.transaction('customers','readwrite');
+      tx.objectStore('customers').add({ name, phone, created: new Date().toISOString() });
       tx.oncomplete = () => {
-        alert("Customer added!");
-        document.getElementById("custName").value = "";
-        document.getElementById("custPhone").value = "";
-        document.getElementById("addForm").style.display = "none";
+        $('custName').value=''; $('custPhone').value=''; $('addCard').style.display='none';
+        toast('Customer added');
       };
     }
 
-    function loadCustomers() {
-      const tx = db.transaction("customers", "readonly");
-      const store = tx.objectStore("customers");
-      const request = store.getAll();
-
-      request.onsuccess = function() {
-        const customers = request.result;
-        const list = document.getElementById("customerList");
-        list.innerHTML = "";
-
-        if (customers.length === 0) {
-          list.innerHTML = "<p>No customers yet.</p>";
-          return;
-        }
-
-        customers.forEach(c => {
-          const div = document.createElement("div");
-          div.className = "customer";
-          div.innerHTML = `<strong>${c.name}</strong> (${c.phone || 'No Phone'})`;
-          list.appendChild(div);
+    function loadCustomers(){
+      const tx = db.transaction('customers','readonly');
+      tx.objectStore('customers').getAll().onsuccess = (ev) => {
+        const arr = ev.target.result || [];
+        const list = $('customerList'); list.innerHTML = '';
+        if(arr.length===0){ list.innerHTML = '<div class="empty">No customers yet.</div>'; return; }
+        arr.forEach(c => {
+          const item = document.createElement('div');
+          item.className = 'card';
+          item.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px">
+              <div>
+                <div class="title">${escapeHtml(c.name)}</div>
+                <div style="color:#5b677e; font-size:13px">${c.phone?escapeHtml(c.phone):'No phone'}</div>
+              </div>
+              <div class="row">
+                <button class="btn btn-primary" onclick="openDetail(${c.id})">Open</button>
+              </div>
+            </div>`;
+          list.appendChild(item);
         });
       };
     }
-  </script>
-</body>
+
+    // ===== Detail / Transactions =====
+    function openDetail(id){
+      const tx = db.transaction('customers','readonly');
+      tx.objectStore('customers').get(id).onsuccess = (e) => {
+        currentCustomer = e.target.result;
+        if(!currentCustomer){ alert('Customer not found'); return; }
+        $('detailTitle').textContent = currentCustomer.name;
+        $('detailMeta').textContent = currentCustomer.phone ? `Phone: ${currentCustomer.phone}` : 'Phone: —';
+        $('listCard').style.display='none';
+        $('detailCard').style.display='block';
+        $('txnDate').value = (new Date()).toISOString().slice(0,10);
+        renderHistory();
+      };
+    }
+
+    function saveTransaction(){
+      if(!currentCustomer){ alert('Open a customer first'); return; }
+      const type = $('txnType').value;
+      const amount = parseFloat(($('txnAmount').value||'').trim());
+      const date = $('txnDate').value;
+      if(!(amount>0) || !date){ alert('Enter valid amount & date'); return; }
+
+      const tx = db.transaction('transactions','readwrite');
+      tx.objectStore('transactions').add({ customerId: currentCustomer.id, type, amount, date });
+      tx.oncomplete = () => { $('txnAmount').value=''; renderHistory(); toast('Entry added'); };
+    }
+
+    function renderHistory(){
+      const idxTx = db.transaction('transactions','readonly').objectStore('transactions').index('customerId');
+      const req = idxTx.getAll(currentCustomer.id);
+      req.onsuccess = (e) => {
+        const rows = (e.target.result||[]).sort((a,b)=> (a.date||'').localeCompare(b.date));
+        let invested=0, profit=0;
+        const list = $('txnList'); list.innerHTML = '';
+        if(rows.length===0){ list.innerHTML = '<div class="empty">No transactions yet.</div>'; }
+        rows.forEach(r=>{
+          if(r.type==='investment') invested+=Number(r.amount||0); else profit+=Number(r.amount||0);
+          const li = document.createElement('div');
+          li.className='card';
+          li.innerHTML = `<div style="display:flex; justify-content:space-between"><div>${r.date} • ${r.type}</div><div>${fmt(r.amount)}</div></div>`;
+          list.appendChild(li);
+        });
+        const bal = invested - profit;
+        $('summaryBox').innerHTML = `
+          <div class="grid-2">
+            <div class="card"><div>Total Invested</div><div class="title">${fmt(invested)}</div></div>
+            <div class="card"><div>Profit Paid</div><div class="title">${fmt(profit)}</div></div>
+          </div>
+          <div class="card" style="margin-top:8px"><div>Net Balance</div><div class="title">${fmt(bal)}</div></div>`;
+      };
+    }
+
+    // ===== Utils =====
+    function toast(msg){
+      // Simple, non-intrusive toast
+      const t = document.createElement('div');
+      t.textContent = msg; t.style.position='fixed'; t.style.bottom='16px'; t.style.left='50%'; t.style.transform='translateX(-50%)';
+      t.style.background='#111'; t.style.color:'#fff'; t.style.padding='10px 14px'; t.style.borderRadius='999px'; t.style.boxShadow='0 4px 12px rgba(0,0,0,.3)'; t.style.zIndex=9999;
+      document.body.appendChild(t); setTimeout(()=> t.remove(), 1400);
+    }
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
+  </script></body>
 </html>
