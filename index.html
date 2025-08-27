@@ -2,54 +2,132 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Silver Business App</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <title>Silver Business Manager</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f9f9f9;
+    }
+    h2 {
+      text-align: center;
+      color: #444;
+    }
+    button {
+      margin: 5px;
+      padding: 10px 15px;
+      border: none;
+      background: #1976d2;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0d47a1;
+    }
+    #addForm {
+      margin-top: 15px;
+      padding: 10px;
+      background: #fff;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    input {
+      padding: 8px;
+      margin: 5px;
+      width: 90%;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .customer {
+      background: #fff;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+  </style>
 </head>
 <body>
-  <!-- Dashboard -->
-  <div id="dashboard" class="page">
-    <h2>Dashboard</h2>
-    <button onclick="showAddCustomer()">Add Customer</button>
-    <div id="summary"></div>
-    <h3>Customer List</h3>
-    <div id="customerList"></div>
+
+  <h2>Silver Business</h2>
+
+  <div style="text-align:center;">
+    <button onclick="document.getElementById('addForm').style.display='block'">+ Add Customer</button>
+    <button onclick="loadCustomers()">View Customers</button>
   </div>
 
-  <!-- Customer Detail -->
-  <div id="customerDetail" class="page" style="display:none;">
-    <button onclick="backToDashboard()">⬅ Back</button>
-    <h2 id="custName"></h2>
-    <p id="custPhone"></p>
-    <p id="custAddress"></p>
-    <h3>Balance Summary</h3>
-    <p>Investments: <span id="investTotal">0</span></p>
-    <p>Profits Paid: <span id="profitTotal">0</span></p>
-    <p>Balance: <span id="balance">0</span></p>
-    
-    <h3>Add Transaction</h3>
-    <select id="txnType">
-      <option value="investment">Investment</option>
-      <option value="profit">Profit Paid</option>
-    </select>
-    <input id="txnAmount" type="number" placeholder="Amount">
-    <button onclick="addTransaction()">Add</button>
-
-    <h3>History</h3>
-    <ul id="txnList"></ul>
-
-    <button onclick="downloadPDF()">Download PDF</button>
-  </div>
-
-  <!-- Add Customer Form -->
-  <div id="addCustomerPage" class="page" style="display:none;">
-    <h2>Add Customer</h2>
-    <input id="custNameInput" type="text" placeholder="Name"><br>
-    <input id="custPhoneInput" type="text" placeholder="Phone"><br>
-    <input id="custAddressInput" type="text" placeholder="Address"><br>
+  <div id="addForm" style="display:none; text-align:center;">
+    <h3>Add Customer</h3>
+    <input id="custName" placeholder="Customer Name"><br>
+    <input id="custPhone" placeholder="Phone"><br>
     <button onclick="saveCustomer()">Save</button>
+    <button style="background:#999;" onclick="document.getElementById('addForm').style.display='none'">Close</button>
   </div>
 
-  <script src="script.js"></script>
+  <hr>
+  <h3>Customer List</h3>
+  <div id="customerList"><p>Click 'View Customers' to load data.</p></div>
+
+  <script>
+    let db;
+    const request = indexedDB.open("SilverBusinessDB", 1);
+
+    request.onupgradeneeded = function(event) {
+      db = event.target.result;
+      const customerStore = db.createObjectStore("customers", { keyPath: "id", autoIncrement: true });
+      customerStore.createIndex("name", "name", { unique: false });
+    };
+
+    request.onsuccess = function(event) {
+      db = event.target.result;
+    };
+
+    request.onerror = function(event) {
+      console.error("DB Error:", event.target.error);
+    };
+
+    function saveCustomer() {
+      const name = document.getElementById("custName").value.trim();
+      const phone = document.getElementById("custPhone").value.trim();
+      if (!name) {
+        alert("Enter customer name!");
+        return;
+      }
+      const tx = db.transaction("customers", "readwrite");
+      const store = tx.objectStore("customers");
+      store.add({ name, phone });
+      tx.oncomplete = () => {
+        alert("Customer added!");
+        document.getElementById("custName").value = "";
+        document.getElementById("custPhone").value = "";
+        document.getElementById("addForm").style.display = "none";
+      };
+    }
+
+    function loadCustomers() {
+      const tx = db.transaction("customers", "readonly");
+      const store = tx.objectStore("customers");
+      const request = store.getAll();
+
+      request.onsuccess = function() {
+        const customers = request.result;
+        const list = document.getElementById("customerList");
+        list.innerHTML = "";
+
+        if (customers.length === 0) {
+          list.innerHTML = "<p>No customers yet.</p>";
+          return;
+        }
+
+        customers.forEach(c => {
+          const div = document.createElement("div");
+          div.className = "customer";
+          div.innerHTML = `<strong>${c.name}</strong> (${c.phone || 'No Phone'})`;
+          list.appendChild(div);
+        });
+      };
+    }
+  </script>
 </body>
 </html>
