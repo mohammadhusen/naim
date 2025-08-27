@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Silver Business App</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <div id="loginPage" class="page">
+    <h2>Login</h2>
+    <input id="username" type="text" placeholder="Username"><br>
+    <input id="password" type="password" placeholder="Password"><br>
+    <button onclick="login()">Login</button>
+  </div>
+
+  <div id="dashboard" class="page" style="display:none;">
+    <h2>Dashboard</h2>
+    <button onclick="showAddCustomer()">Add Customer</button>
+    <div id="customerList"></div>
+  </div>
+
+  <div id="customerDetail" class="page" style="display:none;">
+    <button onclick="backToDashboard()">⬅ Back</button>
+    <h2 id="custName"></h2>
+    <p id="custPhone"></p>
+    <p id="custAddress"></p>
+    <h3>Balance Summary</h3>
+    <p>Investments: <span id="investTotal">0</span></p>
+    <p>Profits Paid: <span id="profitTotal">0</span></p>
+    <p>Balance: <span id="balance">0</span></p>
+    
+    <h3>Add Transaction</h3>
+    <select id="txnType">
+      <option value="investment">Investment</option>
+      <option value="profit">Profit Paid</option>
+    </select>
+    <input id="txnAmount" type="number" placeholder="Amount">
+    <button onclick="addTransaction()">Add</button>
+
+    <h3>History</h3>
+    <ul id="txnList"></ul>
+
+    <button onclick="downloadPDF()">Download PDF</button>
+  </div>
+
+  <!-- Add Customer Form -->
+  <div id="addCustomerPage" class="page" style="display:none;">
+    <h2>Add Customer</h2>
+    <input id="custNameInput" type="text" placeholder="Name"><br>
+    <input id="custPhoneInput" type="text" placeholder="Phone"><br>
+    <input id="custAddressInput" type="text" placeholder="Address"><br>
+    <button onclick="saveCustomer()">Save</button>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
