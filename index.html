@@ -1,111 +1,102 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Silver Business Manager (Offline)</title>
-  <style>
-    :root { --primary:#1976d2; --muted:#6c757d; --green:#2e7d32; }
-    *{box-sizing:border-box}
-    body{font-family: system-ui, Arial, sans-serif; margin:0; background:#f6f7fb; color:#222}
-    header{position:sticky; top:0; background:#fff; padding:12px 16px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:8px; z-index:10}
-    h1{font-size:18px; margin:0;}
-    main{padding:16px; max-width:780px; margin:0 auto}
-    .row{display:flex; gap:8px; flex-wrap:wrap}
-    .btn{appearance:none; border:none; border-radius:10px; padding:10px 14px; font-weight:600; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.06)}
-    .btn-primary{background:var(--primary); color:#fff}
-    .btn-muted{background:#e9eef6; color:#1b2a4a}
-    .btn-green{background:var(--green); color:#fff}
-    .btn-outline{background:#fff; border:1px solid #e2e6ef}
-    .card{background:#fff; border:1px solid #e9ecf3; border-radius:14px; padding:14px; box-shadow:0 2px 8px rgba(24,32,62,.06)}
-    .list{display:grid; gap:10px}
-    .title{font-size:16px; font-weight:700}
-    label{font-size:12px; color:#5b677e}
-    input, select{width:100%; padding:10px 12px; border:1px solid #d8deea; border-radius:10px; margin-top:6px}
-    .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-    .badge{display:inline-block; font-size:12px; padding:4px 8px; border-radius:999px; background:#eef4ff; color:#264c9a}
-    .section-title{margin:10px 0 6px; font-weight:700}
-    .empty{padding:18px; text-align:center; color:#5b677e}
-    .divider{height:1px; background:#edf0f7; margin:12px 0}
-    .link{color:var(--primary); text-decoration:none}
-    .footer{margin-top:24px; color:#6b7280; font-size:12px; text-align:center}
-  </style>
+  <meta charset="UTF-8">
+  <title>Silver Business Tracker</title>
 </head>
 <body>
-  <header>
-    <h1>💿 Silver Business (Offline)</h1>
-    <span class="badge" id="dbStatus">DB: connecting…</span>
-  </header>
-  <main>
-    <!-- Controls -->
-    <div class="row" style="margin-bottom:12px">
-      <button class="btn btn-primary" id="btnShowAdd">➕ Add Customer</button>
-      <button class="btn btn-muted" id="btnView">👥 View Customers</button>
-    </div><!-- Add Customer Form -->
-<div class="card" id="addCard" style="display:none">
-  <div class="title">Add Customer</div>
-  <div class="grid-2">
-    <div>
-      <label>Name</label>
-      <input id="custName" placeholder="e.g., Ali" />
-    </div>
-    <div>
-      <label>Phone</label>
-      <input id="custPhone" placeholder="e.g., 98765 43210" />
-    </div>
-  </div>
-  <div class="row" style="margin-top:10px">
-    <button class="btn btn-green" id="btnSaveCustomer">Save</button>
-    <button class="btn btn-outline" id="btnCloseAdd">Close</button>
-  </div>
-</div>
+  <h2>Silver Business</h2>
 
-<!-- Customer List -->
-<div class="card" id="listCard">
-  <div class="title">Customers</div>
-  <div id="customerList" class="list">
-    <div class="empty">Tap <b>View Customers</b> to load.</div>
-  </div>
-</div>
+  <button id="addCustomerBtn">➕ Add Customer</button>
+  <button id="viewCustomersBtn">👥 View Customers</button>
 
-<!-- Customer Detail / Transactions -->
-<div class="card" id="detailCard" style="display:none">
-  <div class="title" id="detailTitle">Customer</div>
-  <div id="detailMeta" style="margin-bottom:8px; color:#5b677e"></div>
+  <p id="db-status">DB: connecting...</p>
 
-  <div class="grid-2">
-    <div>
-      <label>Transaction Type</label>
-      <select id="txnType">
-        <option value="investment">Investment</option>
-        <option value="profit">Profit Paid</option>
-      </select>
-    </div>
-    <div>
-      <label>Amount (₹)</label>
-      <input id="txnAmount" type="number" placeholder="e.g., 2000" />
-    </div>
-  </div>
-  <div style="margin-top:10px">
-    <label>Date</label>
-    <input id="txnDate" type="date" />
-  </div>
-  <div class="row" style="margin-top:10px">
-    <button class="btn btn-green" id="btnAddTxn">Add Entry</button>
-    <button class="btn btn-outline" id="btnBack">Back to List</button>
-  </div>
+  <ul id="customerList"></ul>
 
-  <div class="divider"></div>
+<script>
+let db;
+let dbReady = false;
 
-  <div class="section-title">Balance Summary</div>
-  <div id="summaryBox"></div>
+function openDB() {
+    const request = indexedDB.open("SilverBusinessDB", 1);
 
-  <div class="section-title">History</div>
-  <div id="txnList" class="list"></div>
+    request.onupgradeneeded = function (e) {
+        db = e.target.result;
+        if (!db.objectStoreNames.contains("customers")) {
+            db.createObjectStore("customers", { keyPath: "id", autoIncrement: true });
+        }
+    };
 
-</div>
+    request.onsuccess = function (e) {
+        db = e.target.result;
+        dbReady = true;
+        document.getElementById("db-status").innerText = "DB: connected ✅";
+        document.getElementById("addCustomerBtn").disabled = false;
+        document.getElementById("viewCustomersBtn").disabled = false;
+    };
 
-<div class="footer">Data is saved offline in your browser (IndexedDB).</div>
+    request.onerror = function () {
+        document.getElementById("db-status").innerText = "DB: error ❌";
+    };
+}
 
+function addCustomer() {
+    if (!dbReady) {
+        alert("Database not ready yet!");
+        return;
+    }
+    const name = prompt("Enter customer name:");
+    if (!name) return;
+
+    const tx = db.transaction("customers", "readwrite");
+    const store = tx.objectStore("customers");
+    store.add({ name });
+
+    tx.oncomplete = () => {
+        alert("Customer added!");
+    };
+}
+
+function viewCustomers() {
+    if (!dbReady) {
+        alert("Database not ready yet!");
+        return;
+    }
+    const tx = db.transaction("customers", "readonly");
+    const store = tx.objectStore("customers");
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+        const customers = request.result;
+        const list = document.getElementById("customerList");
+        list.innerHTML = "";
+
+        if (customers.length === 0) {
+            list.innerHTML = `<p>No customers found.</p>`;
+            return;
+        }
+
+        customers.forEach(c => {
+            const li = document.createElement("li");
+            li.textContent = c.name;
+            list.appendChild(li);
+        });
+    };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("addCustomerBtn").addEventListener("click", addCustomer);
+    document.getElementById("viewCustomersBtn").addEventListener("click", viewCustomers);
+
+    document.getElementById("addCustomerBtn").disabled = true;
+    document.getElementById("viewCustomersBtn").disabled = true;
+
+    openDB();
+});
+</script>
+</body>
+</html>
   </main> 
           <script>
 let db;
