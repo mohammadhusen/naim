@@ -106,147 +106,72 @@
 
 <div class="footer">Data is saved offline in your browser (IndexedDB).</div>
 
-  </main>  <script>
-    // ===== IndexedDB Setup =====
-    let db; let currentCustomer = null;
-    const req = indexedDB.open('SilverBusinessDB', 2);
+  </main> 
+          <script>
+let db;
+const statusEl = document.getElementById("dbStatus");
 
-    req.onupgradeneeded = (e) => {
-      db = e.target.result;
-      // customers store
-      if (!db.objectStoreNames.contains('customers')) {
-        const cs = db.createObjectStore('customers', { keyPath: 'id', autoIncrement: true });
-        cs.createIndex('name', 'name', { unique: false });
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) {
+      statusEl.textContent = "DB: not supported ❌";
+      reject("IndexedDB not supported");
+      return;
+    }
+    const request = indexedDB.open("SilverBusinessDB", 1);
+
+    request.onerror = (event) => {
+      statusEl.textContent = "DB: error ❌";
+      reject(event);
+    };
+
+    request.onsuccess = (event) => {
+      db = event.target.result;
+      statusEl.textContent = "DB: connected ✅";
+      resolve(db);
+    };
+
+    request.onupgradeneeded = (event) => {
+      db = event.target.result;
+      if (!db.objectStoreNames.contains("customers")) {
+        const store = db.createObjectStore("customers", { keyPath: "id", autoIncrement: true });
+        store.createIndex("name", "name", { unique: false });
       }
-      // transactions store
-      if (!db.objectStoreNames.contains('transactions')) {
-        const ts = db.createObjectStore('transactions', { keyPath: 'id', autoIncrement: true });
-        ts.createIndex('customerId', 'customerId', { unique: false });
+      statusEl.textContent = "DB: upgraded ✅";
+    };
+  });
+}
+
+// Example add customer
+function addCustomer(name) {
+  const tx = db.transaction("customers", "readwrite");
+  const store = tx.objectStore("customers");
+  return store.add({ name, investments: [], profits: [] });
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    await openDB();
+    document.getElementById("addCustomerBtn").onclick = () => {
+      const name = prompt("Enter customer name:");
+      if (name) {
+        addCustomer(name).onsuccess = () => alert("Customer added!");
       }
     };
 
-    req.onsuccess = (e) => {
-      db = e.target.result;
-      document.getElementById('dbStatus').textContent = 'DB: ready';
-      document.getElementById('dbStatus').style.background = '#e7f5ed';
-      document.getElementById('dbStatus').style.color = '#17603a';
+    document.getElementById("viewCustomersBtn").onclick = () => {
+      const tx = db.transaction("customers", "readonly");
+      const store = tx.objectStore("customers");
+      const req = store.getAll();
+      req.onsuccess = () => {
+        alert("Customers: " + req.result.map(c => c.name).join(", "));
+      };
     };
+  } catch (e) {
+    console.error("DB error:", e);
+  }
+});
+          </script>
 
-    req.onerror = (e) => {
-      document.getElementById('dbStatus').textContent = 'DB error';
-      alert('IndexedDB not available in this browser. Please use Chrome.');
-    };
-
-    // ===== UI Helpers =====
-    const $ = (id) => document.getElementById(id);
-    const fmt = (n) => '₹' + (Number(n||0)).toLocaleString('en-IN');
-
-    // ===== Event Wiring =====
-    $('btnShowAdd').onclick = () => { $('addCard').style.display = 'block'; };
-    $('btnCloseAdd').onclick = () => { $('addCard').style.display = 'none'; };
-    $('btnSaveCustomer').onclick = saveCustomer;
-    $('btnView').onclick = loadCustomers;
-    $('btnAddTxn').onclick = saveTransaction;
-    $('btnBack').onclick = () => { $('detailCard').style.display='none'; $('listCard').style.display='block'; };
-
-    // ===== Customers =====
-    function saveCustomer(){
-      const name = $('custName').value.trim();
-      const phone = $('custPhone').value.trim();
-      if(!name){ alert('Enter name'); return; }
-
-      const tx = db.transaction('customers','readwrite');
-      tx.objectStore('customers').add({ name, phone, created: new Date().toISOString() });
-      tx.oncomplete = () => {
-        $('custName').value=''; $('custPhone').value=''; $('addCard').style.display='none';
-        toast('Customer added');
-      };
-    }
-
-    function loadCustomers(){
-      const tx = db.transaction('customers','readonly');
-      tx.objectStore('customers').getAll().onsuccess = (ev) => {
-        const arr = ev.target.result || [];
-        const list = $('customerList'); list.innerHTML = '';
-        if(arr.length===0){ list.innerHTML = '<div class="empty">No customers yet.</div>'; return; }
-        arr.forEach(c => {
-          const item = document.createElement('div');
-          item.className = 'card';
-          item.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px">
-              <div>
-                <div class="title">${escapeHtml(c.name)}</div>
-                <div style="color:#5b677e; font-size:13px">${c.phone?escapeHtml(c.phone):'No phone'}</div>
-              </div>
-              <div class="row">
-                <button class="btn btn-primary" onclick="openDetail(${c.id})">Open</button>
-              </div>
-            </div>`;
-          list.appendChild(item);
-        });
-      };
-    }
-
-    // ===== Detail / Transactions =====
-    function openDetail(id){
-      const tx = db.transaction('customers','readonly');
-      tx.objectStore('customers').get(id).onsuccess = (e) => {
-        currentCustomer = e.target.result;
-        if(!currentCustomer){ alert('Customer not found'); return; }
-        $('detailTitle').textContent = currentCustomer.name;
-        $('detailMeta').textContent = currentCustomer.phone ? `Phone: ${currentCustomer.phone}` : 'Phone: —';
-        $('listCard').style.display='none';
-        $('detailCard').style.display='block';
-        $('txnDate').value = (new Date()).toISOString().slice(0,10);
-        renderHistory();
-      };
-    }
-
-    function saveTransaction(){
-      if(!currentCustomer){ alert('Open a customer first'); return; }
-      const type = $('txnType').value;
-      const amount = parseFloat(($('txnAmount').value||'').trim());
-      const date = $('txnDate').value;
-      if(!(amount>0) || !date){ alert('Enter valid amount & date'); return; }
-
-      const tx = db.transaction('transactions','readwrite');
-      tx.objectStore('transactions').add({ customerId: currentCustomer.id, type, amount, date });
-      tx.oncomplete = () => { $('txnAmount').value=''; renderHistory(); toast('Entry added'); };
-    }
-
-    function renderHistory(){
-      const idxTx = db.transaction('transactions','readonly').objectStore('transactions').index('customerId');
-      const req = idxTx.getAll(currentCustomer.id);
-      req.onsuccess = (e) => {
-        const rows = (e.target.result||[]).sort((a,b)=> (a.date||'').localeCompare(b.date));
-        let invested=0, profit=0;
-        const list = $('txnList'); list.innerHTML = '';
-        if(rows.length===0){ list.innerHTML = '<div class="empty">No transactions yet.</div>'; }
-        rows.forEach(r=>{
-          if(r.type==='investment') invested+=Number(r.amount||0); else profit+=Number(r.amount||0);
-          const li = document.createElement('div');
-          li.className='card';
-          li.innerHTML = `<div style="display:flex; justify-content:space-between"><div>${r.date} • ${r.type}</div><div>${fmt(r.amount)}</div></div>`;
-          list.appendChild(li);
-        });
-        const bal = invested - profit;
-        $('summaryBox').innerHTML = `
-          <div class="grid-2">
-            <div class="card"><div>Total Invested</div><div class="title">${fmt(invested)}</div></div>
-            <div class="card"><div>Profit Paid</div><div class="title">${fmt(profit)}</div></div>
-          </div>
-          <div class="card" style="margin-top:8px"><div>Net Balance</div><div class="title">${fmt(bal)}</div></div>`;
-      };
-    }
-
-    // ===== Utils =====
-    function toast(msg){
-      // Simple, non-intrusive toast
-      const t = document.createElement('div');
-      t.textContent = msg; t.style.position='fixed'; t.style.bottom='16px'; t.style.left='50%'; t.style.transform='translateX(-50%)';
-      t.style.background='#111'; t.style.color:'#fff'; t.style.padding='10px 14px'; t.style.borderRadius='999px'; t.style.boxShadow='0 4px 12px rgba(0,0,0,.3)'; t.style.zIndex=9999;
-      document.body.appendChild(t); setTimeout(()=> t.remove(), 1400);
-    }
-    function escapeHtml(s){ return String(s).replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
-  </script></body>
+</body>
 </html>
