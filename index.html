@@ -2,167 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Silver Business Tracker</title>
+  <title>Silver Business App</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-  <h2>Silver Business</h2>
+  <div id="loginPage" class="page">
+    <h2>Login</h2>
+    <input id="username" type="text" placeholder="Username"><br>
+    <input id="password" type="password" placeholder="Password"><br>
+    <button onclick="login()">Login</button>
+  </div>
 
-  <button id="addCustomerBtn">➕ Add Customer</button>
-  <button id="viewCustomersBtn">👥 View Customers</button>
+  <div id="dashboard" class="page" style="display:none;">
+    <h2>Dashboard</h2>
+    <button onclick="showAddCustomer()">Add Customer</button>
+    <div id="customerList"></div>
+  </div>
 
-  <p id="db-status">DB: connecting...</p>
+  <div id="customerDetail" class="page" style="display:none;">
+    <button onclick="backToDashboard()">⬅ Back</button>
+    <h2 id="custName"></h2>
+    <p id="custPhone"></p>
+    <p id="custAddress"></p>
+    <h3>Balance Summary</h3>
+    <p>Investments: <span id="investTotal">0</span></p>
+    <p>Profits Paid: <span id="profitTotal">0</span></p>
+    <p>Balance: <span id="balance">0</span></p>
+    
+    <h3>Add Transaction</h3>
+    <select id="txnType">
+      <option value="investment">Investment</option>
+      <option value="profit">Profit Paid</option>
+    </select>
+    <input id="txnAmount" type="number" placeholder="Amount">
+    <button onclick="addTransaction()">Add</button>
 
-  <ul id="customerList"></ul>
+    <h3>History</h3>
+    <ul id="txnList"></ul>
 
-<script>
-let db;
-let dbReady = false;
+    <button onclick="downloadPDF()">Download PDF</button>
+  </div>
 
-function openDB() {
-    const request = indexedDB.open("SilverBusinessDB", 1);
+  <!-- Add Customer Form -->
+  <div id="addCustomerPage" class="page" style="display:none;">
+    <h2>Add Customer</h2>
+    <input id="custNameInput" type="text" placeholder="Name"><br>
+    <input id="custPhoneInput" type="text" placeholder="Phone"><br>
+    <input id="custAddressInput" type="text" placeholder="Address"><br>
+    <button onclick="saveCustomer()">Save</button>
+  </div>
 
-    request.onupgradeneeded = function (e) {
-        db = e.target.result;
-        if (!db.objectStoreNames.contains("customers")) {
-            db.createObjectStore("customers", { keyPath: "id", autoIncrement: true });
-        }
-    };
-
-    request.onsuccess = function (e) {
-        db = e.target.result;
-        dbReady = true;
-        document.getElementById("db-status").innerText = "DB: connected ✅";
-        document.getElementById("addCustomerBtn").disabled = false;
-        document.getElementById("viewCustomersBtn").disabled = false;
-    };
-
-    request.onerror = function () {
-        document.getElementById("db-status").innerText = "DB: error ❌";
-    };
-}
-
-function addCustomer() {
-    if (!dbReady) {
-        alert("Database not ready yet!");
-        return;
-    }
-    const name = prompt("Enter customer name:");
-    if (!name) return;
-
-    const tx = db.transaction("customers", "readwrite");
-    const store = tx.objectStore("customers");
-    store.add({ name });
-
-    tx.oncomplete = () => {
-        alert("Customer added!");
-    };
-}
-
-function viewCustomers() {
-    if (!dbReady) {
-        alert("Database not ready yet!");
-        return;
-    }
-    const tx = db.transaction("customers", "readonly");
-    const store = tx.objectStore("customers");
-    const request = store.getAll();
-
-    request.onsuccess = () => {
-        const customers = request.result;
-        const list = document.getElementById("customerList");
-        list.innerHTML = "";
-
-        if (customers.length === 0) {
-            list.innerHTML = `<p>No customers found.</p>`;
-            return;
-        }
-
-        customers.forEach(c => {
-            const li = document.createElement("li");
-            li.textContent = c.name;
-            list.appendChild(li);
-        });
-    };
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("addCustomerBtn").addEventListener("click", addCustomer);
-    document.getElementById("viewCustomersBtn").addEventListener("click", viewCustomers);
-
-    document.getElementById("addCustomerBtn").disabled = true;
-    document.getElementById("viewCustomersBtn").disabled = true;
-
-    openDB();
-});
-</script>
-</body>
-</html>
-  </main> 
-          <script>
-let db;
-const statusEl = document.getElementById("dbStatus");
-
-function openDB() {
-  return new Promise((resolve, reject) => {
-    if (!window.indexedDB) {
-      statusEl.textContent = "DB: not supported ❌";
-      reject("IndexedDB not supported");
-      return;
-    }
-    const request = indexedDB.open("SilverBusinessDB", 1);
-
-    request.onerror = (event) => {
-      statusEl.textContent = "DB: error ❌";
-      reject(event);
-    };
-
-    request.onsuccess = (event) => {
-      db = event.target.result;
-      statusEl.textContent = "DB: connected ✅";
-      resolve(db);
-    };
-
-    request.onupgradeneeded = (event) => {
-      db = event.target.result;
-      if (!db.objectStoreNames.contains("customers")) {
-        const store = db.createObjectStore("customers", { keyPath: "id", autoIncrement: true });
-        store.createIndex("name", "name", { unique: false });
-      }
-      statusEl.textContent = "DB: upgraded ✅";
-    };
-  });
-}
-
-// Example add customer
-function addCustomer(name) {
-  const tx = db.transaction("customers", "readwrite");
-  const store = tx.objectStore("customers");
-  return store.add({ name, investments: [], profits: [] });
-}
-
-document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    await openDB();
-    document.getElementById("addCustomerBtn").onclick = () => {
-      const name = prompt("Enter customer name:");
-      if (name) {
-        addCustomer(name).onsuccess = () => alert("Customer added!");
-      }
-    };
-
-    document.getElementById("viewCustomersBtn").onclick = () => {
-      const tx = db.transaction("customers", "readonly");
-      const store = tx.objectStore("customers");
-      const req = store.getAll();
-      req.onsuccess = () => {
-        alert("Customers: " + req.result.map(c => c.name).join(", "));
-      };
-    };
-  } catch (e) {
-    console.error("DB error:", e);
-  }
-});
-          </script>
-
+  <script src="script.js"></script>
 </body>
 </html>
